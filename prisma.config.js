@@ -1,10 +1,12 @@
-// prisma.config.ts
-import "dotenv/config";
-import { defineConfig, env } from "prisma/config";
+require("dotenv/config");
+const { defineConfig, env } = require("prisma/config");
 
-export default defineConfig({
+module.exports = defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
     url: env("DATABASE_URL"),
+  },
+  migrations: {
+    seed: "node prisma/seed.js",
   },
 });

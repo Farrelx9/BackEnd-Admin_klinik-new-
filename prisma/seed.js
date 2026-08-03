@@ -1,13 +1,15 @@
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
-const prisma = new PrismaClient();
+const prisma = require("../src/lib/prisma");
 
 async function main() {
   const adminEmail = "admin@klinikgigi.com";
   const adminPassword = "admin123"; // ganti setelah login pertama kali
 
-  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail },
+  });
   if (!existingAdmin) {
     const hashed = await bcrypt.hash(adminPassword, 10);
     await prisma.user.create({
@@ -24,14 +26,28 @@ async function main() {
   }
 
   const services = [
-    { name: "Konsultasi", description: "Pemeriksaan awal gigi & mulut", price: 50000 },
-    { name: "Scaling Gigi", description: "Pembersihan karang gigi", price: 250000 },
-    { name: "Tambal Gigi", description: "Penambalan komposit per gigi", price: 200000 },
+    {
+      name: "Konsultasi",
+      description: "Pemeriksaan awal gigi & mulut",
+      price: 50000,
+    },
+    {
+      name: "Scaling Gigi",
+      description: "Pembersihan karang gigi",
+      price: 250000,
+    },
+    {
+      name: "Tambal Gigi",
+      description: "Penambalan komposit per gigi",
+      price: 200000,
+    },
     { name: "Cabut Gigi", description: "Pencabutan gigi biasa", price: 150000 },
   ];
 
   for (const service of services) {
-    const exists = await prisma.service.findFirst({ where: { name: service.name } });
+    const exists = await prisma.service.findFirst({
+      where: { name: service.name },
+    });
     if (!exists) {
       await prisma.service.create({ data: service });
     }
@@ -40,8 +56,11 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
+  .then(async () => {
+    await prisma.$disconnect();
   })
-  .finally(() => prisma.$disconnect());
+  .catch(async (e) => {
+    console.error(e);
+    await prisma.$disconnect();
+    process.exit(1);
+  });
