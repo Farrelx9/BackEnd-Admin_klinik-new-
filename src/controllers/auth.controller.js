@@ -9,7 +9,7 @@ const registerSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter."),
   email: z.string().email("Email tidak valid."),
   password: z.string().min(6, "Kata sandi minimal 6 karakter."),
-  role: z.enum(["ADMIN", "DOKTER", "STAF"]).optional(),
+  role: z.enum(["ADMIN", "DOKTER"]).optional(),
 });
 
 const loginSchema = z.object({
@@ -35,7 +35,9 @@ function serializeUser(user) {
 const register = asyncHandler(async (req, res) => {
   const data = registerSchema.parse(req.body);
 
-  const existing = await prisma.user.findUnique({ where: { email: data.email } });
+  const existing = await prisma.user.findUnique({
+    where: { email: data.email },
+  });
   if (existing) {
     throw new ApiError(409, "Email sudah terdaftar.");
   }

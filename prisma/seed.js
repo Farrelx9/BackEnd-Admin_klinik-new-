@@ -5,7 +5,7 @@ const prisma = require("../src/lib/prisma");
 
 async function main() {
   const adminEmail = "admin@klinikgigi.com";
-  const adminPassword = "admin123"; // ganti setelah login pertama kali
+  const adminPassword = "admin123"; // ganti setelah npm ogin pertama kali
 
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },

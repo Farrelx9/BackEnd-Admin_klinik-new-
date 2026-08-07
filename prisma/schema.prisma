@@ -13,7 +13,6 @@ datasource db {
 enum Role {
   ADMIN
   DOKTER
-  STAF
 }
 
 enum Gender {
@@ -46,7 +45,7 @@ model User {
   name      String
   email     String   @unique
   password  String
-  role      Role     @default(STAF)
+  role      Role     @default(DOKTER) // <-- Diubah dari STAF menjadi DOKTER
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

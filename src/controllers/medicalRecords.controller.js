@@ -92,15 +92,42 @@ const create = asyncHandler(async (req, res) => {
 });
 
 // PUT /medical-records/:id
-// Note: this updates the record's own fields only. Treatment line items
-// are managed separately (simplest + safest given they affect billing).
+// If `services` is included in the payload, we replace the record's line
+// items entirely (delete existing, snapshot fresh prices, re-create).
+// This keeps billing consistent — no partial/ambiguous merges — at the
+// cost of not preserving each line item's own id across an edit.
 const update = asyncHandler(async (req, res) => {
   const { services, ...data } = recordSchema.partial().parse(req.body);
-  const record = await prisma.medicalRecord.update({
-    where: { id: req.params.id },
-    data,
-    include,
+
+  const record = await prisma.$transaction(async (tx) => {
+    if (services) {
+      await tx.medicalRecordService.deleteMany({
+        where: { medicalRecordId: req.params.id },
+      });
+
+      if (services.length) {
+        const serviceIds = services.map((s) => s.serviceId);
+        const found = await tx.service.findMany({ where: { id: { in: serviceIds } } });
+        const priceById = Object.fromEntries(found.map((s) => [s.id, s.price]));
+
+        await tx.medicalRecordService.createMany({
+          data: services.map((s) => ({
+            medicalRecordId: req.params.id,
+            serviceId: s.serviceId,
+            toothNumber: s.toothNumber || null,
+            priceAtTime: priceById[s.serviceId] ?? 0,
+          })),
+        });
+      }
+    }
+
+    return tx.medicalRecord.update({
+      where: { id: req.params.id },
+      data,
+      include,
+    });
   });
+
   res.json({ data: record });
 });
 
