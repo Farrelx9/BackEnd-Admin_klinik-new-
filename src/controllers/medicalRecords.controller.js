@@ -19,13 +19,26 @@ const recordSchema = z.object({
       z.object({
         serviceId: z.string(),
         toothNumber: z.string().optional().nullable(),
-      })
+      }),
     )
     .optional(),
 });
 
 const include = {
-  patient: { select: { id: true, name: true, phone: true } },
+  patient: {
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+      nik: true,
+      birthDate: true,
+      gender: true,
+      bloodType: true,
+      address: true,
+      allergies: true,
+    },
+  },
   dokter: { select: { id: true, name: true } },
   services: { include: { service: true } },
 };
@@ -47,7 +60,10 @@ const list = asyncHandler(async (req, res) => {
     prisma.medicalRecord.count({ where }),
   ]);
 
-  res.json({ data, meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
+  res.json({
+    data,
+    meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+  });
 });
 
 // GET /medical-records/:id
@@ -70,7 +86,9 @@ const create = asyncHandler(async (req, res) => {
   let serviceCreates = [];
   if (services?.length) {
     const serviceIds = services.map((s) => s.serviceId);
-    const found = await prisma.service.findMany({ where: { id: { in: serviceIds } } });
+    const found = await prisma.service.findMany({
+      where: { id: { in: serviceIds } },
+    });
     const priceById = Object.fromEntries(found.map((s) => [s.id, s.price]));
 
     serviceCreates = services.map((s) => ({
@@ -107,7 +125,9 @@ const update = asyncHandler(async (req, res) => {
 
       if (services.length) {
         const serviceIds = services.map((s) => s.serviceId);
-        const found = await tx.service.findMany({ where: { id: { in: serviceIds } } });
+        const found = await tx.service.findMany({
+          where: { id: { in: serviceIds } },
+        });
         const priceById = Object.fromEntries(found.map((s) => [s.id, s.price]));
 
         await tx.medicalRecordService.createMany({
