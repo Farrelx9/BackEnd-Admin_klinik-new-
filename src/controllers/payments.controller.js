@@ -1,56 +1,35 @@
-const { z } = require("zod");
 const prisma = require("../lib/prisma");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 
-const paymentSchema = z.object({
-  patientId: z.string().min(1, "Pasien wajib dipilih."),
-  medicalRecordId: z.string().optional().nullable(),
-  amount: z.coerce.number().nonnegative("Nominal tidak boleh negatif."),
-  method: z.enum(["CASH", "TRANSFER", "DEBIT", "QRIS"]).optional(),
-  status: z.enum(["UNPAID", "PARTIAL", "PAID"]).optional(),
-  paidAt: z.coerce.date().optional().nullable(),
-});
-
-const include = {
-  patient: { select: { id: true, name: true } },
-  medicalRecord: { select: { id: true, visitDate: true, diagnosis: true } },
-};
-
-const list = asyncHandler(async (req, res) => {
-  const where = {};
-  if (req.query.status) where.status = req.query.status;
-  if (req.query.patientId) where.patientId = req.query.patientId;
-
-  const payments = await prisma.payment.findMany({
-    where,
-    include,
-    orderBy: { createdAt: "desc" },
+// Recompute helper duplicated here (small, avoids a circular require
+// between controllers). Keeps the same logic as invoices.controller.js.
+async function syncInvoiceStatus(tx, invoiceId) {
+  const invoice = await tx.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { payments: true },
   });
-  res.json({ data: payments });
-});
+  if (!invoice) return;
 
-const getById = asyncHandler(async (req, res) => {
-  const payment = await prisma.payment.findUnique({ where: { id: req.params.id }, include });
-  if (!payment) throw new ApiError(404, "Pembayaran tidak ditemukan.");
-  res.json({ data: payment });
-});
+  const paid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const status = paid <= 0 ? "UNPAID" : paid >= Number(invoice.totalAmount) ? "PAID" : "PARTIAL";
 
-const create = asyncHandler(async (req, res) => {
-  const data = paymentSchema.parse(req.body);
-  const payment = await prisma.payment.create({ data, include });
-  res.status(201).json({ data: payment });
-});
+  await tx.invoice.update({ where: { id: invoiceId }, data: { status } });
+}
 
-const update = asyncHandler(async (req, res) => {
-  const data = paymentSchema.partial().parse(req.body);
-  const payment = await prisma.payment.update({ where: { id: req.params.id }, data, include });
-  res.json({ data: payment });
-});
-
+// DELETE /payments/:id
+// Removing an installment (e.g. it was entered by mistake) always
+// re-syncs the parent invoice's status/remaining balance.
 const remove = asyncHandler(async (req, res) => {
-  await prisma.payment.delete({ where: { id: req.params.id } });
+  const payment = await prisma.payment.findUnique({ where: { id: req.params.id } });
+  if (!payment) throw new ApiError(404, "Data pembayaran tidak ditemukan.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.payment.delete({ where: { id: req.params.id } });
+    await syncInvoiceStatus(tx, payment.invoiceId);
+  });
+
   res.status(204).send();
 });
 
-module.exports = { list, getById, create, update, remove };
+module.exports = { remove };
