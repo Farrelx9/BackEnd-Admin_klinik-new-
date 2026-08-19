@@ -34,7 +34,7 @@ enum PaymentMethod {
   QRIS
 }
 
-enum PaymentStatus {
+enum InvoiceStatus {
   UNPAID
   PARTIAL
   PAID
@@ -71,7 +71,7 @@ model Patient {
 
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
-  payments       Payment[]
+  invoices       Invoice[]
 
   @@map("patients")
 }
@@ -136,7 +136,7 @@ model MedicalRecord {
   updatedAt     DateTime     @updatedAt
 
   services MedicalRecordService[]
-  payment  Payment?
+  invoice  Invoice?
 
   @@map("medical_records")
 }
@@ -153,18 +153,35 @@ model MedicalRecordService {
   @@map("medical_record_services")
 }
 
-model Payment {
+model Invoice {
   id              String         @id @default(cuid())
   patientId       String
   patient         Patient        @relation(fields: [patientId], references: [id])
   medicalRecordId String?        @unique
   medicalRecord   MedicalRecord? @relation(fields: [medicalRecordId], references: [id])
-  amount          Decimal        @db.Decimal(12, 2)
-  method          PaymentMethod  @default(CASH)
-  status          PaymentStatus  @default(UNPAID)
-  paidAt          DateTime?
+  totalAmount     Decimal        @db.Decimal(12, 2)
+  status          InvoiceStatus  @default(UNPAID)
+  notes           String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+
+  payments Payment[]
+
+  @@map("invoices")
+}
+
+// Satu baris = satu transaksi uang masuk yang beneran terjadi (DP,
+// pelunasan, dst). Immutable secara desain — kalau salah input, hapus
+// baris itu (bukan diedit), biar riwayatnya tetap jujur/auditable.
+model Payment {
+  id        String        @id @default(cuid())
+  invoiceId String
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount    Decimal       @db.Decimal(12, 2)
+  method    PaymentMethod @default(CASH)
+  paidAt    DateTime      @default(now())
+  notes     String?
+  createdAt DateTime      @default(now())
 
   @@map("payments")
 }
