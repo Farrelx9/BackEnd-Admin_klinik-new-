@@ -38,6 +38,9 @@ app.use(
 app.use(express.json());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
+app.get("/", (req, res) =>
+  res.json({ status: "ok", message: "Klinik Senyum API is running" })
+);
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
 app.use("/api", routes);
