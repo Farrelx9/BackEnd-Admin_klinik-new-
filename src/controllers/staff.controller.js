@@ -8,7 +8,7 @@ const staffSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6).optional(), // optional on update
-  role: z.enum(["ADMIN", "DOKTER", "STAF"]),
+  role: z.enum(["ADMIN", "DOKTER"]),
 });
 
 const select = { id: true, name: true, email: true, role: true, createdAt: true };
