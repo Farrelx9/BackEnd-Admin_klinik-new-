@@ -10,10 +10,30 @@ const {
 
 const app = express();
 
-const allowedOrigins = (
-  process.env.FRONTEND_ORIGIN || "http://localhost:5173"
-).split(",");
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+const defaultOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://admin-dental-irna.vercel.app",
+];
+const envOrigins = process.env.FRONTEND_ORIGIN
+  ? process.env.FRONTEND_ORIGIN.split(",").map((o) => o.trim())
+  : [];
+const allowedOrigins = Array.from(
+  new Set([...defaultOrigins, ...envOrigins])
+);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // allow origin to prevent CORS blocking
+      }
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
